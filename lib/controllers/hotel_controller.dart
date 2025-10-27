@@ -144,6 +144,7 @@ class HotelController extends GetxController {
     final visitorToken = storage.read('visitorToken') ?? '';
 
 
+
     final Map<String, String> headers = {
       "Content-Type": "application/json",
       "authToken": AppConfig.authToken,
