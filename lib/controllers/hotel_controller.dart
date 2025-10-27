@@ -145,6 +145,7 @@ class HotelController extends GetxController {
 
 
 
+
     final Map<String, String> headers = {
       "Content-Type": "application/json",
       "authToken": AppConfig.authToken,
