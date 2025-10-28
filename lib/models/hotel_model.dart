@@ -33,14 +33,15 @@ class Hotel {
       propertyCode: json['propertyCode'] ?? '',
       propertyType: json['propertyType'] ?? '',
       propertyPoliciesAndAmmenities:
-      PropertyPoliciesAndAmenities.fromJson(json['propertyPoliciesAndAmmenities']),
-      markedPrice: Price.fromJson(json['markedPrice']),
-      staticPrice: Price.fromJson(json['staticPrice']),
-      googleReview: GoogleReview.fromJson(json['googleReview']),
+      PropertyPoliciesAndAmenities.fromJson(json['propertyPoliciesAndAmmenities'] ?? {}),
+      markedPrice: Price.fromJson(json['markedPrice'] ?? {}),
+      staticPrice: Price.fromJson(json['staticPrice'] ?? {}),
+      googleReview: GoogleReview.fromJson(json['googleReview'] ?? {}),
       propertyUrl: json['propertyUrl'] ?? '',
-      propertyAddress: PropertyAddress.fromJson(json['propertyAddress']),
+      propertyAddress: PropertyAddress.fromJson(json['propertyAddress'] ?? {}),
     );
   }
+
 }
 
 class PropertyPoliciesAndAmenities {

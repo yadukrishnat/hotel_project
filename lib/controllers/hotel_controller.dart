@@ -7,32 +7,33 @@ import '../config/config.dart';
 import '../models/hotel_model.dart';
 
 class HotelController extends GetxController {
-  var hotels = <Hotel>[].obs;
-  var isLoading = false.obs;
-  var suggestions = <String>[].obs;
-  var isSearching = false.obs;
+  RxList<Hotel> hotels = <Hotel>[].obs;
+  RxList<String> suggestions = <String>[].obs;
+  RxList<Hotel> fetchedHotels = <Hotel>[].obs;
+  RxBool isLoading = false.obs;
+  RxBool isSearching = false.obs;
+
   final storage = GetStorage();
 
-  Future<void> fetchHotels() async {
+  /// ✅ Fetch default popular stays (shown when no search is done)
+  Future<void> fetchDefaultHotels() async {
     isLoading.value = true;
     const url = AppConfig.baseUrl;
 
     try {
       final visitorToken = storage.read('visitorToken')?.toString() ?? '';
-
       if (visitorToken.isEmpty) {
         Get.snackbar('Error', 'Visitor token not found. Please login again.');
-        isLoading.value = false;
         return;
       }
 
-      final Map<String, String> headers = {
+      final headers = {
         "Content-Type": "application/json",
         "authToken": AppConfig.authToken,
         "visitorToken": visitorToken,
       };
 
-      final Map<String, dynamic> body = {
+      final body = {
         "action": "popularStay",
         "popularStay": {
           "limit": 10,
@@ -46,50 +47,45 @@ class HotelController extends GetxController {
             },
           },
           "currency": "INR",
-        }
+        },
       };
 
-      log("📤 Fetching hotels...");
+      log("📤 Fetching default popular hotels...");
       final response = await http.post(
         Uri.parse(url),
         headers: headers,
         body: jsonEncode(body),
       );
 
-      log("📥 Status Code: ${response.statusCode}");
-
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-
         if (decoded["status"] == true && decoded["data"] != null) {
-          // ✅ Properly parse the list of hotels
           final List<dynamic> hotelList = decoded["data"];
-          final parsedHotels =
-          hotelList.map((json) => Hotel.fromJson(json)).toList();
-
-          hotels.assignAll(parsedHotels);
-          log("✅ Loaded hotels: ${hotels.length}");
+          hotels.assignAll(
+            hotelList.map((json) => Hotel.fromJson(json)).toList(),
+          );
+          log("✅ Default hotels loaded: ${hotels.length}");
         } else {
-          Get.snackbar('Error', decoded["message"] ?? 'No hotels found');
+          hotels.clear();
         }
       } else {
         Get.snackbar('Error', 'Failed to load hotels (${response.statusCode})');
       }
     } catch (e) {
-      log("❌ fetchHotels Error: $e");
-      Get.snackbar('Error', e.toString());
+      log("❌ fetchDefaultHotels Error: $e");
     } finally {
       isLoading.value = false;
     }
   }
 
-  /// ✅ Fetch autocomplete suggestions
-  Future<void> fetchSuggestions(String query) async {
+  /// ✅ Fetch hotels when searching
+  Future<void> fetchHotelsFromSearch(String query) async {
     if (query.isEmpty) {
-      suggestions.clear();
+      fetchDefaultHotels();
       return;
     }
 
+    isLoading.value = true;
     const url = AppConfig.baseUrl;
     final visitorToken = storage.read('visitorToken') ?? '';
 
@@ -99,103 +95,96 @@ class HotelController extends GetxController {
       "visitorToken": visitorToken,
     };
 
-    final body = {
-      "action": "searchAutoComplete",
-      "searchAutoComplete": {
-        "inputText": query,
-        "searchType": [
+    final body ={
+      "action":"searchAutoComplete",
+      "searchAutoComplete":{
+        "inputText":"delhi",
+        "searchType":[
           "byCity",
           "byState",
           "byCountry",
-          "byPropertyName"
+          "byRandom",
+          "byPropertyName" // you can put any searchType from the list
         ],
-        "limit": 10
+        "limit":10
       }
     };
 
     try {
-      isSearching.value = true;
-      final response = await http.post(Uri.parse(url),
-          headers: headers, body: jsonEncode(body));
+      final response = await http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(body),
+      );
 
+      log("📥 Search Response: ${response.statusCode}");
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        final list = (decoded["data"] as List?)
-            ?.map((e) => e["displayText"]?.toString() ?? "")
-            .where((text) => text.isNotEmpty)
-            .toList() ??
-            [];
-        suggestions.assignAll(list);
-      } else {
-        log("❌ Autocomplete failed: ${response.statusCode}");
-      }
-    } catch (e) {
-      log("❌ fetchSuggestions Error: $e");
-    } finally {
-      isSearching.value = false;
-    }
-  }
 
-  /// ✅ Fetch actual hotels (after user selects a suggestion)
-  Future<void> fetchHotelsFromSearch(String searchQuery) async {
-    isLoading.value = true;
-    const url = AppConfig.baseUrl;
+        if (decoded["status"] == true &&
+            decoded["data"]?["autoCompleteList"] != null) {
+          final autoCompleteList = decoded["data"]["autoCompleteList"];
+          fetchedHotels.clear();
 
-    final visitorToken = storage.read('visitorToken') ?? '';
+          for (final category in autoCompleteList.keys) {
+            final list = autoCompleteList[category]?["listOfResult"];
+            if (list is List) {
+              for (final item in list) {
+                try {
+                  fetchedHotels.add(
+                    Hotel(
+                      propertyName: item["propertyName"] ?? "",
+                      propertyStar: 0,
+                      propertyImage: "",
+                      propertyCode: "",
+                      propertyType: "",
+                      propertyPoliciesAndAmmenities:
+                          PropertyPoliciesAndAmenities(present: false),
+                      markedPrice: Price(
+                        amount: 0,
+                        displayAmount: "",
+                        currencyAmount: "",
+                        currencySymbol: "",
+                      ),
+                      staticPrice: Price(
+                        amount: 0,
+                        displayAmount: "",
+                        currencyAmount: "",
+                        currencySymbol: "",
+                      ),
+                      googleReview: GoogleReview(reviewPresent: false),
+                      propertyUrl: "",
+                      propertyAddress: PropertyAddress(
+                        street: "",
+                        city: item["address"]?["city"] ?? "",
+                        state: item["address"]?["state"] ?? "",
+                        country: item["address"]?["country"] ?? "",
+                        zipcode: "",
+                        mapAddress: "",
+                        latitude: 0,
+                        longitude: 0,
+                      ),
+                    ),
+                  );
+                } catch (e) {
+                  log("⚠️ Skipped item: $e");
+                }
+              }
+            }
+          }
 
-
-
-
-    final Map<String, String> headers = {
-      "Content-Type": "application/json",
-      "authToken": AppConfig.authToken,
-      "visitorToken": visitorToken,
-    };
-
-    final body = {
-      "action": "getSearchResultListOfHotels",
-      "getSearchResultListOfHotels": {
-        "searchCriteria": {
-          "checkIn": "2026-07-11",
-          "checkOut": "2026-07-12",
-          "rooms": 1,
-          "adults": 2,
-          "children": 0,
-          "searchType": "byCity",
-          "searchQuery": [searchQuery],
-          "accommodation": ["all", "hotel"],
-          "arrayOfExcludedSearchType": ["street"],
-          "highPrice": "3000000",
-          "lowPrice": "0",
-          "limit": 10,
-          "preloaderList": [],
-          "currency": "INR",
-          "rid": 0
-        }
-      }
-    };
-
-    try {
-      final response = await http.post(Uri.parse(url),
-          headers: headers, body: jsonEncode(body));
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        if (decoded["status"] == true && decoded["data"] != null) {
-          hotels.assignAll(
-              (decoded["data"] as List).map((e) => Hotel.fromJson(e)).toList());
+          hotels.assignAll(fetchedHotels);
+          log("✅ Parsed ${fetchedHotels.length} hotels");
         } else {
           hotels.clear();
         }
       } else {
-        log("❌ fetchHotels failed: ${response.statusCode}");
+        log("❌ fetchHotelsFromSearch failed: ${response.statusCode}");
       }
     } catch (e) {
-      log("❌ fetchHotels Error: $e");
+      log("❌ fetchHotelsFromSearch Error: $e");
     } finally {
       isLoading.value = false;
     }
   }
-
-
 }

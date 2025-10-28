@@ -19,7 +19,7 @@ class HotelCard extends StatelessWidget {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: onTap ?? () => Get.snackbar('Selected', hotel.propertyName),
+        onTap: onTap ?? () => Get.snackbar('Selected', hotel.propertyName ?? 'Unknown Hotel'),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -29,25 +29,15 @@ class HotelCard extends StatelessWidget {
                 topLeft: Radius.circular(12),
                 bottomLeft: Radius.circular(12),
               ),
-              child: hotel.propertyImage.isNotEmpty
+              child: (hotel.propertyImage ?? '').isNotEmpty
                   ? Image.network(
-                hotel.propertyImage,
+                hotel.propertyImage!,
                 width: 100,
                 height: 100,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: 100,
-                  height: 100,
-                  color: Colors.grey[200],
-                  child: const Icon(Icons.hotel, size: 40, color: Colors.grey),
-                ),
+                errorBuilder: (context, error, stackTrace) => _fallbackImage(),
               )
-                  : Container(
-                width: 100,
-                height: 100,
-                color: Colors.grey[200],
-                child: const Icon(Icons.hotel, size: 40, color: Colors.grey),
-              ),
+                  : _fallbackImage(),
             ),
 
             // 🧾 Hotel Info
@@ -57,16 +47,16 @@ class HotelCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Hotel Name
+                    // 🏨 Hotel Name
                     AppText(
-                      hotel.propertyName,
+                      hotel.propertyName ?? 'Unknown Hotel',
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
 
                     const SizedBox(height: 4),
 
-                    // Location
+                    // 📍 Location
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -74,7 +64,7 @@ class HotelCard extends StatelessWidget {
                         const SizedBox(width: 3),
                         Expanded(
                           child: AppText(
-                            '${hotel.propertyAddress.city}, ${hotel.propertyAddress.state}',
+                            '${hotel.propertyAddress?.city ?? 'Unknown City'}, ${hotel.propertyAddress?.state ?? ''}',
                             fontSize: 12,
                             color: Colors.grey[700],
                             overflow: TextOverflow.ellipsis,
@@ -85,19 +75,19 @@ class HotelCard extends StatelessWidget {
 
                     const SizedBox(height: 6),
 
-                    // Rating and Review
+                    // ⭐ Rating & Review
                     Row(
                       children: [
                         const Icon(Icons.star, color: Colors.amber, size: 14),
                         const SizedBox(width: 4),
                         AppText(
-                          '${hotel.googleReview.overallRating} (${hotel.googleReview.totalUserRating})',
+                          '${hotel.googleReview?.overallRating ?? 'N/A'} (${hotel.googleReview?.totalUserRating ?? 0})',
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                         const Spacer(),
                         AppText(
-                          hotel.propertyType.capitalizeFirst ?? '',
+                          hotel.propertyType?.capitalizeFirst ?? '',
                           fontSize: 12,
                           color: Colors.grey[600],
                           fontStyle: FontStyle.italic,
@@ -107,18 +97,19 @@ class HotelCard extends StatelessWidget {
 
                     const SizedBox(height: 6),
 
-                    // Price and discount
+                    // 💰 Price
                     Row(
                       children: [
-                        AppText(
-                          hotel.markedPrice.displayAmount,
-                          fontSize: 13,
-                          color: Colors.grey,
-                          decoration: TextDecoration.lineThrough,
-                        ),
+                        if (hotel.markedPrice?.displayAmount != null)
+                          AppText(
+                            hotel.markedPrice!.displayAmount!,
+                            fontSize: 13,
+                            color: Colors.grey,
+                            decoration: TextDecoration.lineThrough,
+                          ),
                         const SizedBox(width: 6),
                         AppText(
-                          hotel.staticPrice.displayAmount,
+                          hotel.staticPrice?.displayAmount ?? 'N/A',
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: Colors.green,
@@ -128,16 +119,16 @@ class HotelCard extends StatelessWidget {
 
                     const SizedBox(height: 6),
 
-                    // Amenities tags
+                    // 🏷 Amenities
                     Wrap(
                       spacing: 6,
                       runSpacing: -4,
                       children: [
-                        if (hotel.propertyPoliciesAndAmmenities.data!.freeWifi)
+                        if (hotel.propertyPoliciesAndAmmenities?.data?.freeWifi == true)
                           _buildTag('Free Wi-Fi', Icons.wifi),
-                        if (hotel.propertyPoliciesAndAmmenities.data!.freeCancellation)
+                        if (hotel.propertyPoliciesAndAmmenities?.data?.freeCancellation == true)
                           _buildTag('Free Cancel', Icons.cancel_outlined),
-                        if (hotel.propertyPoliciesAndAmmenities.data!.payAtHotel)
+                        if (hotel.propertyPoliciesAndAmmenities?.data?.payAtHotel == true)
                           _buildTag('Pay at Hotel', Icons.payments_outlined),
                       ],
                     ),
@@ -151,7 +142,17 @@ class HotelCard extends StatelessWidget {
     );
   }
 
-  // small tag widget
+  // 🧩 Fallback Image
+  Widget _fallbackImage() {
+    return Container(
+      width: 100,
+      height: 100,
+      color: Colors.grey[200],
+      child: const Icon(Icons.hotel, size: 40, color: Colors.grey),
+    );
+  }
+
+  // 🏷 Small tag widget
   Widget _buildTag(String text, IconData icon) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),

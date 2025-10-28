@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:hotel_finder/views/google_auth_page.dart';
 import 'package:hotel_finder/views/home_page.dart';
+import 'package:hotel_finder/views/settings_view.dart';
 
 
 void main() async {
@@ -21,7 +22,8 @@ class MyApp extends StatelessWidget {
       title: 'Hotel Finder',
       initialRoute: '/',
       getPages: [
-        GetPage(name: '/', page: () => GoogleAuthPage()),
+        GetPage(name: '/', page: () => SettingsPage()),
+            //GoogleAuthPage()),
         GetPage(name: '/home', page: () => HomePage()),
       ],
     );
