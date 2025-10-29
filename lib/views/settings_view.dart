@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/app_settings_controller.dart';
-import '../models/settings_model.dart';
+
 import '../styles/app_text.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -79,33 +79,6 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  void _showForceUpdateDialog(BuildContext context, AppSettings s) {
-    // shows only once per frame
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: Text(s.updateTitle ?? 'Update available'),
-        content: Text(s.updateMessage ?? 'Please update the app.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              // open Play Store (android)
-              // final link = s.playStoreLink ?? s.appStoreLink;
-              // if (link != null) _launchUrl(link);
-            },
-            child: const Text('Update'),
-          )
-        ],
-      ),
-    );
-  }
 
-  // void _launchUrl(String? url) async {
-  //   if (url == null) return;
-  //   final uri = Uri.parse(url);
-  //   if (await canLaunchUrl(uri)) {
-  //     await launchUrl(uri);
-  //   }
-  // }
+
 }

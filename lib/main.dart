@@ -22,9 +22,11 @@ class MyApp extends StatelessWidget {
       title: 'Hotel Finder',
       initialRoute: '/',
       getPages: [
-        GetPage(name: '/', page: () => SettingsPage()),
+        GetPage(name: '/', page: () => GoogleAuthPage()),
             //GoogleAuthPage()),
         GetPage(name: '/home', page: () => HomePage()),
+        GetPage(name: '/settings', page: () =>  SettingsPage()),
+        //GetPage(name: '/hotelDetails', page: () =>  HotelDetailPage()),
       ],
     );
   }

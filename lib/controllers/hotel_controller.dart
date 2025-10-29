@@ -7,15 +7,22 @@ import '../config/config.dart';
 import '../models/hotel_model.dart';
 
 class HotelController extends GetxController {
-  RxList<Hotel> hotels = <Hotel>[].obs;
-  RxList<String> suggestions = <String>[].obs;
-  RxList<Hotel> fetchedHotels = <Hotel>[].obs;
+  RxList<Hotel> hotels = <Hotel>[].obs;          // Default hotels
+  RxList<Hotel> fetchedHotels = <Hotel>[].obs;   // Search results
   RxBool isLoading = false.obs;
   RxBool isSearching = false.obs;
+  RxString searchQuery = ''.obs;
 
   final storage = GetStorage();
 
-  /// ✅ Fetch default popular stays (shown when no search is done)
+  /// ✅ Clear search and show default list
+  void clearSearch() {
+    isSearching.value = false;
+    searchQuery.value = '';
+    fetchedHotels.clear();
+  }
+
+  /// ✅ Fetch default (popular) hotels
   Future<void> fetchDefaultHotels() async {
     isLoading.value = true;
     const url = AppConfig.baseUrl;
@@ -78,39 +85,48 @@ class HotelController extends GetxController {
     }
   }
 
-  /// ✅ Fetch hotels when searching
+  /// ✅ Fetch hotels dynamically based on search query
   Future<void> fetchHotelsFromSearch(String query) async {
-    if (query.isEmpty) {
+    searchQuery.value = query.trim();
+
+    if (searchQuery.isEmpty) {
+      clearSearch();
       fetchDefaultHotels();
       return;
     }
 
+    isSearching.value = true;
     isLoading.value = true;
     const url = AppConfig.baseUrl;
-    final visitorToken = storage.read('visitorToken') ?? '';
-
-    final Map<String, String> headers = {
-      "Content-Type": "application/json",
-      "authToken": AppConfig.authToken,
-      "visitorToken": visitorToken,
-    };
-
-    final body ={
-      "action":"searchAutoComplete",
-      "searchAutoComplete":{
-        "inputText":"delhi",
-        "searchType":[
-          "byCity",
-          "byState",
-          "byCountry",
-          "byRandom",
-          "byPropertyName" // you can put any searchType from the list
-        ],
-        "limit":10
-      }
-    };
 
     try {
+      final visitorToken = storage.read('visitorToken')?.toString() ?? '';
+      if (visitorToken.isEmpty) {
+        Get.snackbar('Error', 'Visitor token not found. Please login again.');
+        return;
+      }
+
+      final headers = {
+        "Content-Type": "application/json",
+        "authToken": AppConfig.authToken,
+        "visitorToken": visitorToken,
+      };
+
+      final body = {
+        "action": "searchAutoComplete",
+        "searchAutoComplete": {
+          "inputText": searchQuery.value, // ✅ dynamic
+          "searchType": [
+            "byCity",
+            "byState",
+            "byCountry",
+            "byRandom",
+            "byPropertyName"
+          ],
+          "limit": 10
+        }
+      };
+
       final response = await http.post(
         Uri.parse(url),
         headers: headers,
@@ -120,26 +136,28 @@ class HotelController extends GetxController {
       log("📥 Search Response: ${response.statusCode}");
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
+        final data = decoded["data"]?["autoCompleteList"];
 
-        if (decoded["status"] == true &&
-            decoded["data"]?["autoCompleteList"] != null) {
-          final autoCompleteList = decoded["data"]["autoCompleteList"];
-          fetchedHotels.clear();
+        fetchedHotels.clear();
 
-          for (final category in autoCompleteList.keys) {
-            final list = autoCompleteList[category]?["listOfResult"];
+        if (decoded["status"] == true && data != null) {
+          for (final category in data.keys) {
+            final list = data[category]?["listOfResult"];
             if (list is List) {
               for (final item in list) {
                 try {
                   fetchedHotels.add(
                     Hotel(
-                      propertyName: item["propertyName"] ?? "",
+                      propertyName: item["propertyName"] ?? item["valueToDisplay"] ?? "",
                       propertyStar: 0,
                       propertyImage: "",
-                      propertyCode: "",
-                      propertyType: "",
-                      propertyPoliciesAndAmmenities:
-                          PropertyPoliciesAndAmenities(present: false),
+                      propertyCode: (item["searchArray"]?["query"]?.isNotEmpty ?? false)
+                          ? item["searchArray"]["query"][0]
+                          : "",
+                      propertyType: item["searchArray"]?["type"] ?? "",
+                      propertyPoliciesAndAmmenities: PropertyPoliciesAndAmenities(
+                        present: false,
+                      ),
                       markedPrice: Price(
                         amount: 0,
                         displayAmount: "",
@@ -155,12 +173,12 @@ class HotelController extends GetxController {
                       googleReview: GoogleReview(reviewPresent: false),
                       propertyUrl: "",
                       propertyAddress: PropertyAddress(
-                        street: "",
+                        street: item["address"]?["street"] ?? "",
                         city: item["address"]?["city"] ?? "",
                         state: item["address"]?["state"] ?? "",
                         country: item["address"]?["country"] ?? "",
                         zipcode: "",
-                        mapAddress: "",
+                        mapAddress: item["valueToDisplay"] ?? "",
                         latitude: 0,
                         longitude: 0,
                       ),
@@ -172,11 +190,9 @@ class HotelController extends GetxController {
               }
             }
           }
-
-          hotels.assignAll(fetchedHotels);
-          log("✅ Parsed ${fetchedHotels.length} hotels");
+          log("✅ Parsed ${fetchedHotels.length} search hotels");
         } else {
-          hotels.clear();
+          fetchedHotels.clear();
         }
       } else {
         log("❌ fetchHotelsFromSearch failed: ${response.statusCode}");
@@ -187,4 +203,8 @@ class HotelController extends GetxController {
       isLoading.value = false;
     }
   }
+
+  /// ✅ Computed reactive list for UI
+  List<Hotel> get hotelsToShow =>
+      isSearching.value ? fetchedHotels : hotels;
 }

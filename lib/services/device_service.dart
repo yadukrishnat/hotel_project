@@ -8,26 +8,26 @@ class DeviceHelper {
     if (defaultTargetPlatform == TargetPlatform.android) {
       final info = await deviceInfo.androidInfo;
       return {
-        "deviceModel": info.model ?? "unknown",
-        "deviceFingerprint": info.fingerprint ?? "unknown",
-        "deviceBrand": info.brand ?? "unknown",
-        "deviceId": info.id ?? "unknown", // ✅ fixed here
-        "deviceName": info.device ?? "unknown",
-        "deviceManufacturer": info.manufacturer ?? "unknown",
-        "deviceProduct": info.product ?? "unknown",
+        "deviceModel": info.model ,
+        "deviceFingerprint": info.fingerprint ,
+        "deviceBrand": info.brand ,
+        "deviceId": info.id , // ✅ fixed here
+        "deviceName": info.device,
+        "deviceManufacturer": info.manufacturer ,
+        "deviceProduct": info.product ,
         "deviceSerialNumber": "unknown",
       };
     }
     else if (defaultTargetPlatform == TargetPlatform.iOS) {
       final info = await deviceInfo.iosInfo;
       return {
-        "deviceModel": info.utsname.machine ?? "iPhone",
-        "deviceFingerprint": info.systemVersion ?? "iOS",
+        "deviceModel": info.utsname.machine ,
+        "deviceFingerprint": info.systemVersion ,
         "deviceBrand": "Apple",
         "deviceId": info.identifierForVendor ?? "unknown",
-        "deviceName": info.name ?? "iPhone",
+        "deviceName": info.name ,
         "deviceManufacturer": "Apple",
-        "deviceProduct": info.model ?? "iPhone",
+        "deviceProduct": info.model ,
         "deviceSerialNumber": "unknown",
       };
     } else {
