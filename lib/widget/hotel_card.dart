@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/hotel_model.dart';
 import '../styles/app_text.dart';
-import '../views/hotel_detail page.dart';
+import '../views/hotel_details/ui/hotel_detail_page.dart';
 
 class HotelCard extends StatelessWidget {
   final Hotel hotel;
@@ -338,6 +338,6 @@ class HotelCard extends StatelessWidget {
     );
   }
 
-  // 🎪 Enhanced Snackbar
+
 
 }

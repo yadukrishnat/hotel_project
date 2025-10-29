@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../controllers/hotel_controller.dart';
-import '../widget/hotel_card.dart';
+import '../../../controllers/hotel_controller.dart';
+import '../../../widget/hotel_card.dart';
 
 class HomePage extends StatelessWidget {
   final HotelController controller = Get.put(HotelController());

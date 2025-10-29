@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:hotel_finder/views/google_auth_page.dart';
-import 'package:hotel_finder/views/home_page.dart';
-import 'package:hotel_finder/views/settings_view.dart';
+import 'package:hotel_finder/views/sign_in/view/google_auth_page.dart';
+import 'package:hotel_finder/views/home/ui/home_page.dart';
+import 'package:hotel_finder/views/settings/ui/settings_view.dart';
 
 
 void main() async {
