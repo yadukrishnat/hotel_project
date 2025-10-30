@@ -153,23 +153,7 @@ class HotelCard extends StatelessWidget {
           ),
         ),
         // Favorite button
-        Positioned(
-          top: 4,
-          right: 4,
-          child: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.9),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.favorite_border,
-              size: 14,
-              color: Colors.grey[600],
-            ),
-          ),
-        ),
+
       ],
     );
   }

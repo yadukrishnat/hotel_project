@@ -13,6 +13,11 @@ class HotelController extends GetxController {
   RxBool isSearching = false.obs;
   RxString searchQuery = ''.obs;
 
+  // 🔹 Pagination variables (for search only)
+  RxInt currentPage = 1.obs;
+  final int perPage = 4;
+  RxBool hasMore = true.obs;
+
   final storage = GetStorage();
 
   /// ✅ Clear search and show default list
@@ -20,6 +25,8 @@ class HotelController extends GetxController {
     isSearching.value = false;
     searchQuery.value = '';
     fetchedHotels.clear();
+    hasMore.value = true;
+    currentPage.value = 1;
   }
 
   /// ✅ Fetch default (popular) hotels
@@ -85,8 +92,10 @@ class HotelController extends GetxController {
     }
   }
 
-  /// ✅ Fetch hotels dynamically based on search query
-  Future<void> fetchHotelsFromSearch(String query) async {
+  /// ✅ Fetch hotels dynamically based on search query (with pagination)
+  Future<void> fetchHotelsFromSearch(String query, {bool loadMore = false}) async {
+    if (isLoading.value) return;
+
     searchQuery.value = query.trim();
 
     if (searchQuery.isEmpty) {
@@ -94,6 +103,14 @@ class HotelController extends GetxController {
       fetchDefaultHotels();
       return;
     }
+
+    if (!loadMore) {
+      fetchedHotels.clear();
+      currentPage.value = 1;
+      hasMore.value = true;
+    }
+
+    if (!hasMore.value) return;
 
     isSearching.value = true;
     isLoading.value = true;
@@ -115,7 +132,7 @@ class HotelController extends GetxController {
       final body = {
         "action": "searchAutoComplete",
         "searchAutoComplete": {
-          "inputText": searchQuery.value, // ✅ dynamic
+          "inputText": searchQuery.value,
           "searchType": [
             "byCity",
             "byState",
@@ -123,7 +140,8 @@ class HotelController extends GetxController {
             "byRandom",
             "byPropertyName"
           ],
-          "limit": 10
+          "limit": perPage,
+          "offset": (currentPage.value - 1) * perPage,
         }
       };
 
@@ -133,20 +151,22 @@ class HotelController extends GetxController {
         body: jsonEncode(body),
       );
 
-      log("📥 Search Response: ${response.statusCode}");
+      log("📥 Search page ${currentPage.value} response: ${response.statusCode}");
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         final data = decoded["data"]?["autoCompleteList"];
 
-        fetchedHotels.clear();
+
 
         if (decoded["status"] == true && data != null) {
+          final List<Hotel> newHotels = [];
+
           for (final category in data.keys) {
             final list = data[category]?["listOfResult"];
             if (list is List) {
               for (final item in list) {
                 try {
-                  fetchedHotels.add(
+                  newHotels.add(
                     Hotel(
                       propertyName: item["propertyName"] ?? item["valueToDisplay"] ?? "",
                       propertyStar: 0,
@@ -155,21 +175,9 @@ class HotelController extends GetxController {
                           ? item["searchArray"]["query"][0]
                           : "",
                       propertyType: item["searchArray"]?["type"] ?? "",
-                      propertyPoliciesAndAmmenities: PropertyPoliciesAndAmenities(
-                        present: false,
-                      ),
-                      markedPrice: Price(
-                        amount: 0,
-                        displayAmount: "",
-                        currencyAmount: "",
-                        currencySymbol: "",
-                      ),
-                      staticPrice: Price(
-                        amount: 0,
-                        displayAmount: "",
-                        currencyAmount: "",
-                        currencySymbol: "",
-                      ),
+                      propertyPoliciesAndAmmenities: PropertyPoliciesAndAmenities(present: false),
+                      markedPrice: Price(amount: 0, displayAmount: "", currencyAmount: "", currencySymbol: ""),
+                      staticPrice: Price(amount: 0, displayAmount: "", currencyAmount: "", currencySymbol: ""),
                       googleReview: GoogleReview(reviewPresent: false),
                       propertyUrl: "",
                       propertyAddress: PropertyAddress(
@@ -190,9 +198,27 @@ class HotelController extends GetxController {
               }
             }
           }
-          log("✅ Parsed ${fetchedHotels.length} search hotels");
-        } else {
-          fetchedHotels.clear();
+
+          // ✅ Prevent duplicates before adding
+          for (final newHotel in newHotels) {
+            final alreadyExists = fetchedHotels.any(
+                  (existing) => existing.propertyCode == newHotel.propertyCode,
+            );
+            if (!alreadyExists) {
+              fetchedHotels.add(newHotel);
+            }
+          }
+
+          if (newHotels.length < perPage) {
+            hasMore.value = false;
+          } else {
+            currentPage.value++;
+          }
+
+          log("✅ Added ${newHotels.length} new unique hotels (total: ${fetchedHotels.length})");
+        }
+        else {
+          hasMore.value = false;
         }
       } else {
         log("❌ fetchHotelsFromSearch failed: ${response.statusCode}");
@@ -204,7 +230,8 @@ class HotelController extends GetxController {
     }
   }
 
+
+
   /// ✅ Computed reactive list for UI
-  List<Hotel> get hotelsToShow =>
-      isSearching.value ? fetchedHotels : hotels;
+  List<Hotel> get hotelsToShow => isSearching.value ? fetchedHotels : hotels;
 }

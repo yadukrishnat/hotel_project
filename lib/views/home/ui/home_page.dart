@@ -1,18 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../controllers/currency_controller.dart';
 import '../../../controllers/hotel_controller.dart';
+import '../../../styles/app_text.dart';
 import '../../../widget/hotel_card.dart';
 
 class HomePage extends StatelessWidget {
-  final HotelController controller = Get.put(HotelController());
-  final TextEditingController searchController = TextEditingController();
-
   HomePage({super.key});
+
+  final HotelController controller = Get.put(HotelController());
+  final CurrencyController currencyController = Get.put(CurrencyController());
+  final TextEditingController searchController = TextEditingController();
+  final ScrollController scrollController = ScrollController();
+
+  void _setupPagination() {
+    scrollController.addListener(() {
+      if (controller.isSearching.value &&
+          !controller.isLoading.value &&
+          scrollController.position.pixels >=
+              scrollController.position.maxScrollExtent - 200) {
+        controller.fetchHotelsFromSearch(
+          controller.searchQuery.value,
+          loadMore: true,
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Load default hotels on startup
+    // 🔹 Initialize on first build
     controller.fetchDefaultHotels();
+    currencyController.fetchINRCurrency();
+    _setupPagination();
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -39,6 +59,7 @@ class HomePage extends StatelessWidget {
                 onPressed: () {
                   searchController.clear();
                   controller.clearSearch();
+                  controller.fetchDefaultHotels();
                 },
               )
                   : const SizedBox.shrink()),
@@ -49,6 +70,7 @@ class HomePage extends StatelessWidget {
             onChanged: (value) {
               if (value.isEmpty) {
                 controller.clearSearch();
+                controller.fetchDefaultHotels();
               }
             },
             onSubmitted: (value) {
@@ -56,6 +78,7 @@ class HomePage extends StatelessWidget {
                 controller.fetchHotelsFromSearch(value);
               } else {
                 controller.clearSearch();
+                controller.fetchDefaultHotels();
               }
             },
           ),
@@ -64,9 +87,7 @@ class HomePage extends StatelessWidget {
           Container(
             margin: const EdgeInsets.only(right: 8),
             child: InkWell(
-              onTap: () {
-                Get.toNamed('/settings');
-              },
+              onTap: () => Get.toNamed('/settings'),
               borderRadius: BorderRadius.circular(10),
               child: Container(
                 padding: const EdgeInsets.all(8),
@@ -79,13 +100,11 @@ class HomePage extends StatelessWidget {
                   children: [
                     Icon(Icons.settings, color: Colors.blue[700], size: 20),
                     const SizedBox(height: 2),
-                    Text(
+                    AppText(
                       'Settings',
-                      style: TextStyle(
-                        color: Colors.blue[700],
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.blue[700],
                     ),
                   ],
                 ),
@@ -94,43 +113,41 @@ class HomePage extends StatelessWidget {
           ),
         ],
       ),
+
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header section
+          // 🏷️ Header
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Obx(() => Text(
+                Obx(() => AppText(
                   controller.isSearching.value
                       ? 'Search Results'
                       : 'Recommended Hotels',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 )),
                 const SizedBox(height: 4),
-                Obx(() => Text(
+                Obx(() => AppText(
                   controller.isSearching.value
                       ? '${controller.fetchedHotels.length} hotels found'
                       : 'Discover amazing places to stay',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
+                  fontSize: 14,
+                  color: Colors.grey[600],
                 )),
               ],
             ),
           ),
 
-          // Hotels list
+          // 🏨 Hotel List
           Expanded(
             child: Obx(() {
-              if (controller.isLoading.value) {
+              if (controller.isLoading.value &&
+                  controller.hotelsToShow.isEmpty) {
                 return const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -140,74 +157,81 @@ class HomePage extends StatelessWidget {
                         strokeWidth: 2,
                       ),
                       SizedBox(height: 16),
-                      Text(
+                      AppText(
                         'Finding amazing hotels...',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 14,
-                        ),
+                        color: Colors.grey,
+                        fontSize: 14,
                       ),
                     ],
                   ),
                 );
               }
 
-              final hotelsToShow = controller.isSearching.value
-                  ? controller.fetchedHotels
-                  : controller.hotels;
+              final hotelsToShow = controller.hotelsToShow;
 
               if (hotelsToShow.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.hotel_outlined,
-                        size: 80,
-                        color: Colors.grey[300],
-                      ),
+                      Icon(Icons.hotel_outlined,
+                          size: 80, color: Colors.grey[300]),
                       const SizedBox(height: 16),
-                      const Text(
+                      const AppText(
                         'No hotels found',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey,
-                        ),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey,
                       ),
                       const SizedBox(height: 8),
-                      Text(
+                      AppText(
                         'Try adjusting your search criteria',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[500],
-                        ),
+                        fontSize: 14,
+                        color: Colors.grey,
                       ),
                     ],
                   ),
                 );
               }
 
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
+              return NotificationListener<ScrollNotification>(
+                onNotification: (scrollInfo) {
+                  if (controller.isSearching.value &&
+                      !controller.isLoading.value &&
+                      scrollInfo.metrics.pixels >=
+                          scrollInfo.metrics.maxScrollExtent - 200) {
+                    controller.fetchHotelsFromSearch(
+                      controller.searchQuery.value,
+                      loadMore: true,
+                    );
+                  }
+                  return false;
+                },
                 child: ListView.separated(
+                  controller: scrollController,
                   physics: const BouncingScrollPhysics(),
-                  itemCount: hotelsToShow.length,
+                  itemCount: hotelsToShow.length +
+                      (controller.isSearching.value &&
+                          controller.isLoading.value
+                          ? 1
+                          : 0),
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
-                    final hotel = hotelsToShow[index];
-                    return HotelCard(
-                      hotel: hotel,
-                      // onTap: () => Get.snackbar(
-                      //   'Hotel Selected',
-                      //   hotel.propertyName,
-                      //   snackPosition: SnackPosition.BOTTOM,
-                      //   backgroundColor: Colors.green,
-                      //   colorText: Colors.white,
-                      //   borderRadius: 12,
-                      //   margin: const EdgeInsets.all(16),
-                      // ),
-                    );
+                    if (index < hotelsToShow.length) {
+                      final hotel = hotelsToShow[index];
+                      return HotelCard(hotel: hotel);
+                    } else {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.blue),
+                          ),
+                        ),
+                      );
+                    }
                   },
                 ),
               );
@@ -215,9 +239,6 @@ class HomePage extends StatelessWidget {
           ),
         ],
       ),
-
-      // Floating action button for quick actions
-
     );
   }
 }
